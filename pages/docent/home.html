@@ -200,11 +200,12 @@
               aria-label="Close"
             ></button>
           </div>
+          <!-- onsubmit="submitIncidenceForm(event)" -->
           <form
             novalidate
             name="formIncidence"
             id="formIncidence"
-            onsubmit="submitIncidenceForm(event)"
+
           >
             <div class="modal-body">
               <div class="form-group form-row mb-3 row">
@@ -330,9 +331,10 @@
                 Cancelar
               </button>
               <button
-                type="submit"
+                type="button"
                 form="formIncidence"
                 class="btn btn-primary"
+                onclick="registerIncidence()"
               >
                 Registrar
               </button>

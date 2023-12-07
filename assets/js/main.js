@@ -6,81 +6,108 @@
  * License: https://bootstrapmade.com/license/
  */
 
-let swReg;
-if (navigator.serviceWorker) {
-  navigator.serviceWorker.register('/sw.js').then(swRegRes=>{
-    swReg = swRegRes;
-    swReg.pushManager.getSubscription().then(verifyNotifications)
-  })
-}
-
-const verifyNotifications = (activated)=>{
-  console.log(activated);
-  if (activated) {
-    console.log("true");
-    $('#notifyActivated').css('display', 'block')
-    $('#notifyDeactivated').css('display', 'none')
-  }else{
-    console.log("false");
-    $('#notifyDeactivated').css('display', 'block')
-    $('#notifyActivated').css('display', 'none')
-
-  }
-
-}
-
-
-const parseJWT = () =>{
-  const token = localStorage.getItem('token');;
-  const payload = token.split('.')[1]
-  const base64 = payload.replace(/-/g,'+').replace(/_/g, '/');
-  const user = decodeURIComponent(window.atob(base64).split('').map(
-    c=>{
-      return `%${('00'+c.charCodeAt(0).toString(16)).slice(-2)}`
-    }
-  ).join(''))
-  return JSON.parse(user)
-}
-
-$(document).on('click', "#notifications", async ()=>{
-  console.log("Entro en el onclick");
-    try{
-      const subscription = await swReg.pushManager.getSubscription();
-      if(subscription){
-        subscription.unsubscribe().then(() => verifyNotifications(false));
-        return 
-      }
-      if(!swReg) return;
-      const response = await axiosClient.get('/notification/',{
-        responseType: 'arraybuffer'
-      })
-      const data = new Uint8Array(response)
-      swReg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: data
-      }).then((res) => res.toJson())
-      .then((subscription) =>{
-        console.log(subscription);
-        const user = parseJWT();
-        axiosClient.post('/notification/',{
-          id: user.id,
-          userDetails: {subscription}
-        }).then((res) => verifyNotifications(res['updated']))
-        .catch((res) =>{
-          swReg.pushManager.getSubscription().then((subscription) =>{
-            subscription.unsubscribe.then(()=>verifyNotifications(false));
-          })
-        })
-      })
-    }catch(error){
-
-    }
-})
-
-
 
 var fullname = ``;
 var role = ``;
+let swReg;
+
+if(navigator.serviceWorker){
+  navigator.serviceWorker.register('/sw.js')
+  .then(sw=>{
+    swReg = sw;
+    swReg.pushManager.getSubscription().then(verifyNotifications);
+  })
+}
+
+const isOnline = () =>{
+  if(navigator.onLine){
+      toastMessage('Tienes conexión a internet').showToast()
+  }else{
+    toastMessage('Estas en modo offline').showToast()
+  }
+}
+
+window.addEventListener('online',isOnline);
+window.addEventListener('offline',isOnline);
+
+const verifyNotifications = (activated) =>{
+  if(activated){
+    $('#notifyActivated').css('display','block');
+    $('#notifyDeactivated').css('display','none');
+  }else{
+    $('#notifyActivated').css('display','none');
+    $('#notifyDeactivated').css('display','block');
+  }
+};
+
+const parserJWT = () =>{
+  const token = localStorage.getItem('token');
+  const payload = token.split('.')[1];
+  const base64 = payload.replace(/-/g,'+').replace(/_/g, '/');
+  const data = decodeURIComponent(window
+    .atob(base64)
+    .split('')
+    .map(c=>`%${('00'+c.charCodeAt(0).toString(16)).slice(-2)}`)
+    .join('')
+  )
+  return JSON.parse(data);
+
+}
+
+// const parseJWT = () => {
+//   const token = localStorage.getItem('token');
+//   const payload = token.split('.')[1];
+//   const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+//   const data = decodeURIComponent(
+//     window
+//     .atob(base64)
+//     .split('')
+//     .map((c) =>`%${('00' + c.charCodeAt(0).toString(16)).slice(-2)}`)
+//     .join('')
+//   );
+//   return JSON.parse(data);
+// }
+
+$(document).on('click','#notifications',async e=>{
+  try {
+    if(!swReg){
+      return;
+    }
+    const subscription = await swReg.pushManage.getSubscription();
+    if(subscription){
+      subscription.unsubcribe().then(()=>verifyNotifications(false));
+      return;
+    }
+    const response = await axiosClient.get('/notification/',{
+      responseType: 'arraybuffer',
+    })
+
+    const data = new Uint8Array(response);
+
+    swReg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: data
+    }).then(res=>res.toJSON())
+    .then(async subscription=>{
+      console.log(subscription);
+      const user = parserJWT();
+      await axiosClient.post('/notification/',{
+        id: user.id,
+        userDetails: {subscription},
+      }).then(res=>{
+        verifyNotifications(res['updated']);
+      }).catch(err=>{
+        swReg.pushManage.getSubscription()
+        .then((sub)=>{
+          sub.unsubcribe().then(verifyNotifications(false));
+        })
+      })
+    })
+  } catch (error) {
+    console.log(error);
+  }
+})
+
 const changeView = (role) => {
   role = role;
   switch (role) {
